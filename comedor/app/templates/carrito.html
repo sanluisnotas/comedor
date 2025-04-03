@@ -1,0 +1,125 @@
+<!-- hotel_pedidos/app/templates/carrito.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Carrito de Pedidos - Hotel</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; background: #f5f7fa; }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #3498db; color: white; }
+        button { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; transition: background 0.3s; }
+        .back-btn { background: #e67e22; color: white; margin-bottom: 20px; }
+        .back-btn:hover { background: #d35400; }
+        .update-btn { background: #2ecc71; color: white; }
+        .update-btn:hover { background: #27ae60; }
+        .delete-btn { background: #e74c3c; color: white; }
+        .delete-btn:hover { background: #c0392b; }
+        .confirm-btn { background: #3498db; color: white; display: block; margin: 0 auto; padding: 12px 24px; font-size: 16px; }
+        .confirm-btn:hover { background: #2980b9; }
+        input { padding: 6px; border: 1px solid #ddd; border-radius: 4px; width: 100%; }
+    </style>
+</head>
+<body>
+    <h1>Carrito de Pedidos</h1>
+    <button class="back-btn" onclick="window.location.href='/productos'">Volver a Productos</button>
+    <table id="cart-table">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Notas</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="cart-items"></tbody>
+    </table>
+    <button class="confirm-btn" id="confirm-btn">Confirmar Pedidos</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCart();
+            document.getElementById('confirm-btn').addEventListener('click', confirmCart);
+        });
+
+        async function loadCart() {
+            try {
+                console.log('Cargando carrito...');
+                const response = await axios.get('/api/pedidos/pendientes', { withCredentials: true });
+                console.log('Pedidos pendientes:', response.data);
+                renderCart(response.data);
+            } catch (error) {
+                const errorMsg = error.response ? error.response.data.detail || error.response.statusText : error.message;
+                console.error('Error al cargar el carrito:', errorMsg);
+                alert(`Error al cargar el carrito: ${errorMsg}`);
+            }
+        }
+
+        function renderCart(pedidos) {
+            const cartItems = document.getElementById('cart-items');
+            cartItems.innerHTML = '';
+            pedidos.forEach(pedido => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${pedido.producto.nombre}</td>
+                    <td><input type="number" value="${pedido.cantidad}" min="1" data-id="${pedido.id}" class="cantidad-input"></td>
+                    <td><input type="text" value="${pedido.notas || ''}" data-id="${pedido.id}" class="notas-input"></td>
+                    <td>
+                        <button class="update-btn" onclick="updateItem(${pedido.id})">Actualizar</button>
+                        <button class="delete-btn" onclick="deleteItem(${pedido.id})">Eliminar</button>
+                    </td>
+                `;
+                cartItems.appendChild(row);
+            });
+        }
+
+        async function updateItem(pedidoId) {
+            const cantidad = document.querySelector(`input.cantidad-input[data-id="${pedidoId}"]`).value;
+            const notas = document.querySelector(`input.notas-input[data-id="${pedidoId}"]`).value;
+            try {
+                console.log('Actualizando pedido:', pedidoId, cantidad, notas);
+                const response = await axios.put(`/api/pedidos/${pedidoId}`, {
+                    cantidad: parseInt(cantidad),
+                    notas: notas || null
+                }, { withCredentials: true });
+                console.log('Pedido actualizado:', response.data);
+                loadCart();
+            } catch (error) {
+                const errorMsg = error.response ? error.response.data.detail || error.response.statusText : error.message;
+                console.error('Error al actualizar:', errorMsg);
+                alert(`Error al actualizar: ${errorMsg}`);
+            }
+        }
+
+        async function deleteItem(pedidoId) {
+            try {
+                console.log('Eliminando pedido:', pedidoId);
+                const response = await axios.delete(`/api/pedidos/${pedidoId}`, { withCredentials: true });
+                console.log('Pedido eliminado:', response.data);
+                loadCart();
+            } catch (error) {
+                const errorMsg = error.response ? error.response.data.detail || error.response.statusText : error.message;
+                console.error('Error al eliminar:', errorMsg);
+                alert(`Error al eliminar: ${errorMsg}`);
+            }
+        }
+
+        async function confirmCart() {
+            try {
+                console.log('Confirmando pedidos...');
+                const response = await axios.post('/api/pedidos/confirmar', {}, { withCredentials: true });
+                console.log('Respuesta del servidor:', response.data);
+                alert(response.data.message);
+                loadCart();
+            } catch (error) {
+                const errorMsg = error.response ? error.response.data.detail || error.response.statusText : error.message;
+                console.error('Error al confirmar:', errorMsg);
+                alert(`Error al confirmar: ${errorMsg}`);
+            }
+        }
+    </script>
+</body>
+</html>

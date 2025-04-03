@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Carrito de Pedidos - Hotel</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { padding: 5px 10px; cursor: pointer; }
+        .back-btn { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Carrito de Pedidos</h1>
+    <button class="back-btn" onclick="window.location.href='/productos'">Volver a Productos</button>
+    <table id="cart-table">
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Notas</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="cart-items"></tbody>
+    </table>
+    <button id="confirm-btn">Confirmar Pedidos</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCart();
+            document.getElementById('confirm-btn').addEventListener('click', confirmCart);
+        });
+
+        async function loadCart() {
+            try {
+                console.log('Cargando carrito...');
+                const response = await axios.get('/api/pedidos/pendientes', { withCredentials: true });
+                console.log('Pedidos pendientes:', response.data);
+                renderCart(response.data);
+            } catch (error) {
+                const errorMsg = error.response ? error.response.data.detail || error.response.statusText : error.message;
+                console.error('Error al cargar el carrito:', errorMsg);
+                alert(`Error al cargar el carrito: ${errorMsg}`);
+            }
+        }
+
+        function renderCart(pedidos) {
+            const cartItems = document.getElementById('cart-items');
+            cartItems.innerHTML = '';
+            pedidos.forEach(pedido => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${pedido.producto.nombre}</td>
+                    <td><input type="number" value="${pedido.cantidad}" min="1" data-id="${pedido.id}" class="cantidad-input"></td>
+                    <td><input type="text" value="${pedido.notas || ''}" data-id="${pedido.id}" class="notas-input"></td>
+                    <td>
+                        <button onclick="updateItem(${pedido.id})">Actualizar</button>
+                        <button onclick="deleteItem(${pedido.id})">Eliminar</button>
+                    </td>
+                `;
+                cartItems.appendChild(row);
+            });
+        }
+
+        async function updateItem(pedidoId) {
+            const cantidad = document.querySelector(`input.cantidad-input[data-id="${pedidoId}"]`).value;
+            const notas = document.querySelector(`input.notas-input[data-id="${pedidoId}"]`).value;
+            try {
+                console.log('Actualizando pedido:', pedidoId, cantidad, notas);
+                const response = await axios.put(`/api/pedidos/${pedidoId}`, {
+                    cantidad: parseInt(cantidad),
+                    notas: notas || null
+                }, { withCredentials: true });
+                console.log('Pedido actualizado:', response.data);
+                loadCart(); // Recargar el carrito
+            } catch (error) {
+                const errorMsg = error.response ? error.response.data.detail || error.response.statusText : error.message;
+                console.error('Error al actualizar:', errorMsg);
+                alert(`Error al actualizar: ${errorMsg}`);
+            }
+        }
+
+        async function deleteItem(pedidoId) {
+            try {
+                console.log('Eliminando pedido:', pedidoId);
+                const response = await axios.delete(`/api/pedidos/${pedidoId}`, { withCredentials: true });
+                console.log('Pedido eliminado:', response.data);
+                loadCart(); // Recargar el carrito
+            } catch (error) {
+                const errorMsg = error.response ? error.response.data.detail || error.response.statusText : error.message;
+                console.error('Error al eliminar:', errorMsg);
+                alert(`Error al eliminar: ${errorMsg}`);
+            }
+        }
+
+        async function confirmCart() {
+            try {
+                console.log('Confirmando pedidos...');
+                const response = await axios.post('/api/pedidos/confirmar', {}, { withCredentials: true });
+                console.log('Respuesta del servidor:', response.data);
+                alert(response.data.message);
+                loadCart(); // Recargar para mostrar el carrito vacío
+            } catch (error) {
+                const errorMsg = error.response ? error.response.data.detail || error.response.statusText : error.message;
+                console.error('Error al confirmar:', errorMsg);
+                alert(`Error al confirmar: ${errorMsg}`);
+            }
+        }
+    </script>
+</body>
+</html>

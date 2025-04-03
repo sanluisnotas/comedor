@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Pedidos - Admin</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <header class="admin-header">
+        <div class="container">
+            <h1>Gestión de Pedidos</h1>
+            <nav class="admin-nav">
+                <ul>
+                    <li><a href="/admin">Inicio</a></li>
+                    <li><a href="/admin/pedidos" class="active">Pedidos</a></li>
+                    <li><a href="/admin/habitaciones">Habitaciones</a></li>
+                    <li><a href="/admin/productos">Productos</a></li>
+                    <li><button id="logout-btn">Cerrar Sesión</button></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="admin-section">
+            <div class="filters">
+                <select id="status-filter">
+                    <option value="all">Todos los estados</option>
+                    <option value="pendiente">Pendientes</option>
+                    <option value="en_proceso">En proceso</option>
+                    <option value="entregado">Entregados</option>
+                </select>
+                <input type="date" id="date-filter">
+                <button id="apply-filters">Aplicar</button>
+            </div>
+
+            <div class="table-container">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Habitación</th>
+                            <th>Productos</th>
+                            <th>Total</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-table-body">
+                        <!-- Pedidos se cargarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination">
+                <button id="prev-page">Anterior</button>
+                <span id="page-info">Página 1</span>
+                <button id="next-page">Siguiente</button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal para editar pedido -->
+    <div id="edit-order-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Editar Pedido #<span id="modal-order-id"></span></h3>
+            <div id="modal-order-details"></div>
+            <div class="modal-actions">
+                <select id="order-status">
+                    <option value="pendiente">Pendiente</option>
+                    <option value="en_proceso">En proceso</option>
+                    <option value="entregado">Entregado</option>
+                </select>
+                <button id="save-order-btn">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/admin/auth.js"></script>
+    <script src="/static/js/admin/orders.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            await verifyAdminSession();
+            loadOrders();
+            
+            // Configurar event listeners
+            document.getElementById('apply-filters').addEventListener('click', loadOrders);
+            document.getElementById('prev-page').addEventListener('click', prevPage);
+            document.getElementById('next-page').addEventListener('click', nextPage);
+        });
+
+        let currentPage = 1;
+        const ordersPerPage = 10;
+
+        async function loadOrders() {
+            try {
+                const status = document.getElementById('status-filter').value;
+                const date = document.getElementById('date-filter').value;
+                
+                const response = await axios.get('/api/admin/pedidos', {
+                    params: {
+                        status,
+                        date,
+                        page: currentPage,
+                        per_page: ordersPerPage
+                    }
+                });
+
+                renderOrders(response.data);
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+
+        function renderOrders(orders) {
+            const tbody = document.getElementById('orders-table-body');
+            tbody.innerHTML = '';
+
+            orders.forEach(order => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${order.id}</td>
+                    <td>${order.habitacion_numero} (${order.habitacion_apellido})</td>
+                    <td>${order.items.map(i => `${i.cantidad}x ${i.producto_nombre}`).join(', ')}</td>
+                    <td>$${order.total.toFixed(2)}</td>
+                    <td>${new Date(order.fecha).toLocaleString()}</td>
+                    <td class="status-${order.estado}">${order.estado}</td>
+                    <td>
+                        <button onclick="openEditModal(${order.id})">Editar</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
